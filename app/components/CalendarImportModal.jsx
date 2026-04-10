@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { initGoogleAuth, requestAccessToken, fetchUpcomingEvents, GOOGLE_CLIENT_ID } from '../lib/gcal';
 
 export default function CalendarImportModal({ open, onClose, onImport, targetGroupName }) {
@@ -7,6 +7,8 @@ export default function CalendarImportModal({ open, onClose, onImport, targetGro
   const [events, setEvents] = useState([]);
   const [selected, setSelected] = useState(new Set());
   const [error, setError] = useState('');
+  const titleId = 'gcal-import-title';
+  const backdropRef = useRef(null);
 
   useEffect(() => {
     if (!open) {
@@ -14,7 +16,10 @@ export default function CalendarImportModal({ open, onClose, onImport, targetGro
       setEvents([]);
       setSelected(new Set());
       setError('');
+      return;
     }
+    // enable Escape key handling without needing a focusable child
+    backdropRef.current?.focus();
   }, [open]);
 
   const isPlaceholder = GOOGLE_CLIENT_ID.startsWith('YOUR_GOOGLE_CLIENT_ID');
@@ -29,7 +34,7 @@ export default function CalendarImportModal({ open, onClose, onImport, targetGro
       setEvents(items);
       setStatus('ready');
     } catch (err) {
-      setError(err.message || 'Failed to connect to Google Calendar');
+      setError((err && err.message) || String(err) || 'Failed to connect to Google Calendar');
       setStatus('error');
     }
   };
@@ -65,11 +70,27 @@ export default function CalendarImportModal({ open, onClose, onImport, targetGro
   if (!open) return null;
 
   return (
-    <div className="modal-backdrop" onClick={onClose}>
-      <div className="modal" onClick={(e) => e.stopPropagation()}>
+    <div
+      className="modal-backdrop"
+      onClick={onClose}
+      onKeyDown={(e) => {
+        if (e.key === 'Escape') onClose();
+      }}
+      tabIndex={-1}
+      ref={backdropRef}
+    >
+      <div
+        className="modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="modal-header">
-          <h3>Import from Google Calendar</h3>
-          <button className="close" onClick={onClose}>&times;</button>
+          <h3 id={titleId}>Import from Google Calendar</h3>
+          <button type="button" className="close" onClick={onClose} aria-label="Close">
+            &times;
+          </button>
         </div>
 
         <div className="modal-body">
@@ -102,15 +123,18 @@ export default function CalendarImportModal({ open, onClose, onImport, targetGro
             <ul className="event-list">
               {events.map((e) => (
                 <li key={e.id}>
-                  <input
-                    type="checkbox"
-                    checked={selected.has(e.id)}
-                    onChange={() => toggle(e.id)}
-                  />
-                  <div className="event-text">
-                    <div>{e.summary}</div>
-                    <div className="event-time">{formatTime(e.start)}</div>
-                  </div>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 12, width: '100%' }}>
+                    <input
+                      type="checkbox"
+                      checked={selected.has(e.id)}
+                      onChange={() => toggle(e.id)}
+                      aria-label={e.summary || 'Calendar event'}
+                    />
+                    <div className="event-text">
+                      <div>{e.summary}</div>
+                      <div className="event-time">{formatTime(e.start)}</div>
+                    </div>
+                  </label>
                 </li>
               ))}
             </ul>
@@ -118,12 +142,15 @@ export default function CalendarImportModal({ open, onClose, onImport, targetGro
         </div>
 
         <div className="modal-footer">
-          <button className="secondary" onClick={onClose}>Cancel</button>
+          <button type="button" className="secondary" onClick={onClose}>
+            Cancel
+          </button>
           {status === 'ready' ? (
             <button
               className="primary"
               onClick={handleImport}
               disabled={selected.size === 0}
+              type="button"
             >
               Add {selected.size} task{selected.size === 1 ? '' : 's'}
             </button>
@@ -132,6 +159,7 @@ export default function CalendarImportModal({ open, onClose, onImport, targetGro
               className="primary"
               onClick={handleConnect}
               disabled={status === 'loading'}
+              type="button"
             >
               {status === 'loading' ? 'Connecting…' : 'Connect Google'}
             </button>
