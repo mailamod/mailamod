@@ -1,0 +1,6 @@
+node_modules/
+.next/
+out/
+
+# Next.js SWC native binary (Windows x64)
+**/next-swc.win32-x64-msvc.node
