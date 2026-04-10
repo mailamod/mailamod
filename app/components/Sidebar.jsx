@@ -1,9 +1,16 @@
 'use client';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 const GROUPS_PER_PAGE = 10;
 
-export default function Sidebar({ groups, selectedId, onSelect, onAdd, onDelete, taskCounts }) {
+export default function Sidebar({
+  groups = [],
+  selectedId,
+  onSelect,
+  onAdd,
+  onDelete,
+  taskCounts = {},
+}) {
   const [name, setName] = useState('');
   const [page, setPage] = useState(0);
 
@@ -11,6 +18,10 @@ export default function Sidebar({ groups, selectedId, onSelect, onAdd, onDelete,
   const safePage = Math.min(page, totalPages - 1);
   const start = safePage * GROUPS_PER_PAGE;
   const visible = groups.slice(start, start + GROUPS_PER_PAGE);
+
+  useEffect(() => {
+    if (page !== safePage) setPage(safePage);
+  }, [page, safePage]);
 
   const handleAdd = () => {
     const trimmed = name.trim();
@@ -32,9 +43,13 @@ export default function Sidebar({ groups, selectedId, onSelect, onAdd, onDelete,
           placeholder="New group..."
           value={name}
           onChange={(e) => setName(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && handleAdd()}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && !e.isComposing) handleAdd();
+          }}
         />
-        <button onClick={handleAdd}>+</button>
+        <button type="button" onClick={handleAdd} aria-label="Add group">
+          +
+        </button>
       </div>
 
       <ul className="group-list">
@@ -49,6 +64,7 @@ export default function Sidebar({ groups, selectedId, onSelect, onAdd, onDelete,
               <span className="count-badge">{taskCounts[g.id] || 0}</span>
               {groups.length > 1 && (
                 <button
+                  type="button"
                   className="del"
                   onClick={(e) => {
                     e.stopPropagation();
@@ -66,15 +82,22 @@ export default function Sidebar({ groups, selectedId, onSelect, onAdd, onDelete,
 
       {totalPages > 1 && (
         <div className="pager">
-          <button onClick={() => setPage(safePage - 1)} disabled={safePage === 0}>
+          <button
+            type="button"
+            onClick={() => setPage(safePage - 1)}
+            disabled={safePage === 0}
+            aria-label="Previous page"
+          >
             &lsaquo;
           </button>
           <span>
             {safePage + 1} / {totalPages}
           </span>
           <button
+            type="button"
             onClick={() => setPage(safePage + 1)}
             disabled={safePage >= totalPages - 1}
+            aria-label="Next page"
           >
             &rsaquo;
           </button>
