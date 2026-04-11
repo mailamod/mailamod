@@ -39,12 +39,17 @@ export const api = {
                                      body: JSON.stringify({ items }),
                                    }),
 
-  toggleTask:   (id, done)      => jsonFetch(`/api/tasks/${id}`, {
+  moveTask:     (id, status)    => jsonFetch(`/api/tasks/${id}`, {
                                      method: 'PATCH',
-                                     body: JSON.stringify({ done }),
+                                     body: JSON.stringify({ status }),
                                    }),
 
   deleteTask:   (id)            => jsonFetch(`/api/tasks/${id}`, {
                                      method: 'DELETE',
+                                   }),
+
+  createUser:   (data)          => jsonFetch('/api/users', {
+                                     method: 'POST',
+                                     body: JSON.stringify(data),
                                    }),
 };
