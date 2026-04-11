@@ -47,10 +47,12 @@ export function getDb() {
   // Migrate: add status column to tasks if it doesn't exist yet
   try {
     db.exec(`ALTER TABLE tasks ADD COLUMN status TEXT NOT NULL DEFAULT 'todo'`);
-    db.exec(`UPDATE tasks SET status = 'done' WHERE done = 1`);
   } catch (e) {
     if (!e.message.includes('duplicate column name')) throw e;
   }
+  // Always backfill — only touches rows not yet migrated
+  db.exec(`UPDATE tasks SET status = 'done' WHERE done = 1 AND status = 'todo'`);
+
 
   // Seed default group on first run
   const count = db.prepare('SELECT COUNT(*) AS c FROM groups').get().c;
