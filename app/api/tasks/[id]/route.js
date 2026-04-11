@@ -20,7 +20,7 @@ export async function PATCH(req, { params }) {
     }
 
     const { done, status } = body ?? {};
-
+    const db = getDb();
     let result;
 
     if (status !== undefined) {
@@ -31,12 +31,12 @@ export async function PATCH(req, { params }) {
         );
       }
       const doneValue = status === 'done' ? 1 : 0;
-      result = getDb()
+      result = db
         .prepare('UPDATE tasks SET status = ?, done = ? WHERE id = ?')
         .run(status, doneValue, id);
     } else if (typeof done === 'boolean') {
       const statusValue = done ? 'done' : 'todo';
-      result = getDb()
+      result = db
         .prepare('UPDATE tasks SET done = ?, status = ? WHERE id = ?')
         .run(done ? 1 : 0, statusValue, id);
     } else {
@@ -51,7 +51,7 @@ export async function PATCH(req, { params }) {
     }
     return NextResponse.json({ ok: true });
   } catch (err) {
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
 
@@ -67,6 +67,6 @@ export async function DELETE(_req, { params }) {
     }
     return NextResponse.json({ ok: true });
   } catch (err) {
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
