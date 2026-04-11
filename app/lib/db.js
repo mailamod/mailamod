@@ -7,7 +7,9 @@ let db = null;
 export function getDb() {
   if (db) return db;
 
-  const dataDir = path.join(process.cwd(), 'data');
+  const dataDir = process.env.TODO_DATA_DIR
+    ? path.resolve(process.env.TODO_DATA_DIR)
+    : path.join(process.cwd(), 'data');
   if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
 
   db = new Database(path.join(dataDir, 'todo.db'));
