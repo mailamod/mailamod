@@ -1,24 +1,14 @@
 'use client';
-import { useState, useMemo, useEffect } from 'react';
+import { useState } from 'react';
 
-const TASKS_PER_PAGE = 20;
+const COLUMNS = [
+  { key: 'todo',       label: 'To Do' },
+  { key: 'inprogress', label: 'In Progress' },
+  { key: 'done',       label: 'Completed' },
+];
 
-export default function TasksView({ group, tasks, onAdd, onToggle, onDelete }) {
+export default function TasksView({ group, tasks, onAdd, onMove, onDelete }) {
   const [text, setText] = useState('');
-  const [page, setPage] = useState(0);
-
-  const totalPages = Math.max(1, Math.ceil(tasks.length / TASKS_PER_PAGE));
-  const safePage = Math.min(page, totalPages - 1);
-
-  useEffect(() => {
-    // Reset pagination when switching groups.
-    setPage(0);
-  }, [group?.id]);
-
-  const visible = useMemo(() => {
-    const start = safePage * TASKS_PER_PAGE;
-    return tasks.slice(start, start + TASKS_PER_PAGE);
-  }, [tasks, safePage]);
 
   const handleAdd = () => {
     const trimmed = text.trim();
@@ -44,45 +34,57 @@ export default function TasksView({ group, tasks, onAdd, onToggle, onDelete }) {
         <button onClick={handleAdd}>Add</button>
       </div>
 
-      {tasks.length === 0 ? (
-        <div className="empty-state">No tasks yet. Add one above!</div>
-      ) : (
-        <>
-          <ul className="task-list">
-            {visible.map((t) => (
-              <li key={t.id} className={t.done ? 'done' : ''}>
-                <input
-                  type="checkbox"
-                  checked={t.done}
-                  onChange={() => onToggle(t.id)}
-                />
-                <span className="task-text">{t.text}</span>
-                {t.source === 'gcal' && <span className="source-tag">Calendar</span>}
-                <button className="del" onClick={() => onDelete(t.id)} title="Delete">
-                  &#x2715;
-                </button>
-              </li>
-            ))}
-          </ul>
+      <div className="board">
+        {COLUMNS.map((col, colIndex) => {
+          const colTasks = tasks.filter((t) => (t.status || 'todo') === col.key);
+          return (
+            <div key={col.key} className="board-col">
+              <div className="board-col-header">
+                <span className="board-col-title">{col.label}</span>
+                <span className="count-badge">{colTasks.length}</span>
+              </div>
 
-          {totalPages > 1 && (
-            <div className="task-pager">
-              <button onClick={() => setPage(safePage - 1)} disabled={safePage === 0}>
-                &lsaquo; Prev
-              </button>
-              <span>
-                Page {safePage + 1} of {totalPages} &middot; {tasks.length} total
-              </span>
-              <button
-                onClick={() => setPage(safePage + 1)}
-                disabled={safePage >= totalPages - 1}
-              >
-                Next &rsaquo;
-              </button>
+              {colTasks.length === 0 ? (
+                <p className="board-col-empty">No tasks</p>
+              ) : (
+                colTasks.map((t) => (
+                  <div key={t.id} className="task-card">
+                    <span className="task-card-text">{t.text}</span>
+                    {t.source === 'gcal' && (
+                      <span className="source-tag">Calendar</span>
+                    )}
+                    <div className="task-card-actions">
+                      <button
+                        className="move-btn"
+                        title="Move left"
+                        disabled={colIndex === 0}
+                        onClick={() => onMove(t.id, COLUMNS[colIndex - 1].key)}
+                      >
+                        ←
+                      </button>
+                      <button
+                        className="move-btn"
+                        title="Move right"
+                        disabled={colIndex === COLUMNS.length - 1}
+                        onClick={() => onMove(t.id, COLUMNS[colIndex + 1].key)}
+                      >
+                        →
+                      </button>
+                      <button
+                        className="del"
+                        title="Delete"
+                        onClick={() => onDelete(t.id)}
+                      >
+                        &#x2715;
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
-          )}
-        </>
-      )}
+          );
+        })}
+      </div>
     </>
   );
 }
