@@ -7,7 +7,9 @@ let db = null;
 export function getDb() {
   if (db) return db;
 
-  const dataDir = path.join(process.cwd(), 'data');
+  const dataDir = process.env.TODO_DATA_DIR
+    ? path.resolve(process.env.TODO_DATA_DIR)
+    : path.join(process.cwd(), 'data');
   if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
 
   db = new Database(path.join(dataDir, 'todo.db'));
@@ -32,7 +34,25 @@ export function getDb() {
     );
 
     CREATE INDEX IF NOT EXISTS idx_tasks_group ON tasks(group_id);
+
+    CREATE TABLE IF NOT EXISTS users (
+      id         TEXT PRIMARY KEY,
+      first_name TEXT NOT NULL,
+      last_name  TEXT NOT NULL,
+      email      TEXT NOT NULL UNIQUE,
+      created_at INTEGER NOT NULL
+    );
   `);
+
+  // Migrate: add status column to tasks if it doesn't exist yet
+  try {
+    db.exec(`ALTER TABLE tasks ADD COLUMN status TEXT NOT NULL DEFAULT 'todo'`);
+  } catch (e) {
+    if (!e.message.includes('duplicate column name')) throw e;
+  }
+  // Always backfill — only touches rows not yet migrated
+  db.exec(`UPDATE tasks SET status = 'done' WHERE done = 1 AND status = 'todo'`);
+
 
   // Seed default group on first run
   const count = db.prepare('SELECT COUNT(*) AS c FROM groups').get().c;
@@ -54,6 +74,7 @@ export function rowToTask(row) {
     id: row.id,
     text: row.text,
     done: !!row.done,
+    status: row.status || 'todo',
     source: row.source || undefined,
   };
 }
@@ -68,7 +89,7 @@ export function getAllState() {
   for (const g of groups) {
     tasks[g.id] = d
       .prepare(
-        'SELECT id, text, done, source FROM tasks WHERE group_id = ? ORDER BY created_at DESC'
+        'SELECT id, text, done, source, status FROM tasks WHERE group_id = ? ORDER BY created_at DESC'
       )
       .all(g.id)
       .map(rowToTask);

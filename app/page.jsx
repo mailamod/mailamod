@@ -3,6 +3,8 @@ import { useState, useEffect, useMemo } from 'react';
 import Sidebar from './components/Sidebar';
 import TasksView from './components/TasksView';
 import CalendarImportModal from './components/CalendarImportModal';
+import HamburgerMenu from './components/HamburgerMenu';
+import AddUserModal from './components/AddUserModal';
 import { api } from './lib/store';
 
 export default function Home() {
@@ -10,6 +12,15 @@ export default function Home() {
   const [selectedId, setSelectedId] = useState(null);
   const [calOpen, setCalOpen] = useState(false);
   const [error, setError] = useState('');
+  const [userModalOpen, setUserModalOpen] = useState(false);
+  const [successToast, setSuccessToast] = useState(null);
+
+  // Auto-clear toast after 3 seconds
+  useEffect(() => {
+    if (!successToast) return;
+    const t = setTimeout(() => setSuccessToast(null), 3000);
+    return () => clearTimeout(t);
+  }, [successToast]);
 
   // Initial load from server
   useEffect(() => {
@@ -84,34 +95,34 @@ export default function Home() {
     }
   };
 
-  const toggleTask = async (id) => {
-    const current = currentTasks.find((t) => t.id === id);
-    if (!current) return;
-    const nextDone = !current.done;
+  const moveTask = async (id, status) => {
+    if (!selectedId) return;
+    const prev = currentTasks.find((t) => t.id === id);
+    if (!prev) return;
     // Optimistic update
     setState((s) => ({
       ...s,
       tasks: {
         ...s.tasks,
         [selectedId]: s.tasks[selectedId].map((t) =>
-          t.id === id ? { ...t, done: nextDone } : t
+          t.id === id ? { ...t, status } : t
         ),
       },
     }));
     try {
-      await api.toggleTask(id, nextDone);
+      await api.moveTask(id, status);
     } catch (e) {
-      setError(e.message);
       // Revert
       setState((s) => ({
         ...s,
         tasks: {
           ...s.tasks,
           [selectedId]: s.tasks[selectedId].map((t) =>
-            t.id === id ? { ...t, done: !nextDone } : t
+            t.id === id ? { ...t, status: prev.status } : t
           ),
         },
       }));
+      setError(e.message);
     }
   };
 
@@ -171,11 +182,16 @@ export default function Home() {
       <main className="main">
         <div className="main-header">
           <h1>{selectedGroup ? selectedGroup.name : 'Tasks'}</h1>
-          <button className="gcal-btn" onClick={() => setCalOpen(true)} disabled={!selectedGroup}>
-            <span className="gcal-dot" />
-            Import from Google Calendar
-          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <button className="gcal-btn" onClick={() => setCalOpen(true)} disabled={!selectedGroup}>
+              <span className="gcal-dot" />
+              Import from Google Calendar
+            </button>
+            <HamburgerMenu onAddUser={() => setUserModalOpen(true)} />
+          </div>
         </div>
+
+        {successToast && <div className="toast">{successToast}</div>}
 
         {error && (
           <div style={{
@@ -190,7 +206,7 @@ export default function Home() {
           group={selectedGroup}
           tasks={currentTasks}
           onAdd={addTask}
-          onToggle={toggleTask}
+          onMove={moveTask}
           onDelete={deleteTask}
         />
       </main>
@@ -200,6 +216,15 @@ export default function Home() {
         onClose={() => setCalOpen(false)}
         onImport={importCalendarEvents}
         targetGroupName={selectedGroup?.name}
+      />
+
+      <AddUserModal
+        open={userModalOpen}
+        onClose={() => setUserModalOpen(false)}
+        onSuccess={(msg) => {
+          setUserModalOpen(false);
+          setSuccessToast(msg);
+        }}
       />
     </div>
   );
